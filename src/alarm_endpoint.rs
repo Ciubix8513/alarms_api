@@ -13,7 +13,10 @@ use log::{info, log, warn};
 use rand::RngCore;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::alarm_responses::{self, test_alarm::logging_allarm};
+use crate::{
+    alarm_responses::{self, test_alarm::logging_allarm},
+    CHANNEL_STORE,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Struct for the alarm endpoint
@@ -31,11 +34,7 @@ pub enum FailureStatus {
 }
 
 #[post("/alarm")]
-pub async fn alarm(
-    payload: Json<AlarmRequest>,
-    api_key: Data<String>,
-    channel_map: Data<Mutex<HashMap<u32, mpsc::Sender<()>>>>,
-) -> impl Responder {
+pub async fn alarm(payload: Json<AlarmRequest>, api_key: Data<String>) -> impl Responder {
     if api_key.into_inner() != payload.api_key.clone().into() {
         return HttpResponse::Unauthorized();
     }
@@ -45,7 +44,7 @@ pub async fn alarm(
 
     let mut alarm_id = rng.next_u32();
 
-    let mut map = channel_map.lock().unwrap();
+    let mut map = CHANNEL_STORE.lock().unwrap();
 
     loop {
         if map.contains_key(&alarm_id) {
@@ -89,16 +88,12 @@ pub struct AlarmId {
 }
 
 #[post("/disable_alarm")]
-pub async fn disable_alarm(
-    payload: Json<AlarmId>,
-    api_key: Data<String>,
-    channel_map: Data<Mutex<HashMap<u32, mpsc::Sender<()>>>>,
-) -> impl Responder {
+pub async fn disable_alarm(payload: Json<AlarmId>, api_key: Data<String>) -> impl Responder {
     if api_key.into_inner() != payload.api_key.clone().into() {
         return HttpResponse::Unauthorized();
     }
 
-    let mut map = channel_map.lock().unwrap();
+    let mut map = CHANNEL_STORE.lock().unwrap();
 
     for i in map.iter() {
         info!("{:?}", i);

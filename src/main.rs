@@ -1,13 +1,18 @@
 use std::{
     collections::HashMap,
-    sync::{mpsc, Mutex},
+    sync::{mpsc, Arc, Mutex},
 };
 
 use actix_web::{web::Data, App, HttpServer};
 use alarm_endpoint::{alarm, disable_alarm};
+use once_cell::sync::Lazy;
 
 mod alarm_endpoint;
 mod alarm_responses;
+mod config;
+
+pub static CHANNEL_STORE: Lazy<Arc<Mutex<HashMap<u32, mpsc::Sender<()>>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[actix_web::main()]
 async fn main() -> std::io::Result<()> {
@@ -30,9 +35,6 @@ async fn main() -> std::io::Result<()> {
             .service(alarm)
             .service(disable_alarm)
             .app_data(Data::new(api_key.clone()))
-            .app_data(Data::new(Mutex::new(
-                HashMap::<u32, mpsc::Sender<()>>::new(),
-            )))
             .wrap(actix_web::middleware::Logger::default())
     })
     .bind((ip_address, port))?
