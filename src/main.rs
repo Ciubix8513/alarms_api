@@ -45,12 +45,13 @@ async fn main() {
         }
     }
     let config = config::prarse_config(args.config_path.into()).unwrap();
+    let c1 = config.clone();
 
     HttpServer::new(move || {
         App::new()
             .service(alarm)
             .service(disable_alarm)
-            .app_data(Data::new(config.api_key.clone()))
+            .app_data(Data::new(c1.clone()))
             .wrap(actix_web::middleware::Logger::default())
     })
     .bind((config.ip_address, config.port))

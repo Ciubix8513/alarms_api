@@ -5,7 +5,7 @@ use std::{
 
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct Config {
     pub hosts: Vec<ConfigItem>,
     pub api_key: String,
@@ -13,19 +13,19 @@ pub struct Config {
     pub port: u16,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ConfigItem {
     pub name: String,
     pub responses: Vec<SeverityItem>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct SeverityItem {
     pub severity: Severity,
     pub response: AlarmResponseTypes,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum Severity {
     #[default]
     Low,
@@ -34,19 +34,19 @@ pub enum Severity {
     Test,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum RepeatingSatus {
     #[default]
     NonRepeating,
     Repeating(u32),
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct FileArguments {
     pub path: PathBuf,
     pub repeating: RepeatingSatus,
 }
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum AlarmResponseTypes {
     Sound,
     #[default]

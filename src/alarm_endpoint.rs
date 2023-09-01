@@ -1,20 +1,17 @@
-use std::{
-    collections::HashMap,
-    sync::{mpsc, Mutex},
-    thread,
-};
+use std::{sync::mpsc, thread};
 
 use actix_web::{
     post,
     web::{Data, Json},
     HttpResponse, Responder,
 };
-use log::{info, log, warn};
+use log::{info, warn};
 use rand::RngCore;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
-    alarm_responses::{self, test_alarm::logging_allarm},
+    alarm_responses::test_alarm::logging_allarm,
+    config::{Config, Severity},
     CHANNEL_STORE,
 };
 
@@ -23,19 +20,13 @@ use crate::{
 pub struct AlarmRequest {
     pub api_key: String,
     pub host_id: String,
-    pub failure_status: FailureStatus,
+    pub failure_status: Severity,
     pub failure_cause: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum FailureStatus {
-    Warn,
-    Error,
-}
-
 #[post("/alarm")]
-pub async fn alarm(payload: Json<AlarmRequest>, api_key: Data<String>) -> impl Responder {
-    if api_key.into_inner() != payload.api_key.clone().into() {
+pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Responder {
+    if config.api_key != payload.api_key {
         return HttpResponse::Unauthorized();
     }
 
@@ -55,6 +46,10 @@ pub async fn alarm(payload: Json<AlarmRequest>, api_key: Data<String>) -> impl R
     }
 
     map.insert(alarm_id, tx);
+
+    if let Some(item) = config.hosts.iter().find(|i| i.name == payload.host_id) {
+        // if let Some(response).
+    }
 
     // warn!("{}", map.contains_key(&alarm_id));
 
