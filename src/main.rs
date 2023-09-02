@@ -7,14 +7,16 @@ use std::{
 use actix_web::{web::Data, App, HttpServer};
 use alarm_endpoint::{alarm, disable_alarm};
 use clap::Parser;
-use config::generate_default_config;
+use config::generate_default;
 use once_cell::sync::Lazy;
 
 mod alarm_endpoint;
 mod alarm_responses;
 mod config;
 
-pub static CHANNEL_STORE: Lazy<Arc<Mutex<HashMap<u32, mpsc::Sender<()>>>>> =
+pub type ArcMutex<T> = Arc<Mutex<T>>;
+
+pub static CHANNEL_STORE: Lazy<ArcMutex<HashMap<u32, mpsc::Sender<()>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[derive(clap_derive::Parser)]
@@ -38,13 +40,13 @@ async fn main() {
 
     if !args.config_path.exists() {
         if args.generate_config {
-            generate_default_config(&args.config_path).expect("Unable to generate default config");
+            generate_default(&args.config_path).expect("Unable to generate default config");
         } else {
             log::error!("No config file");
             return;
         }
     }
-    let config = config::prarse_config(args.config_path.into()).unwrap();
+    let config = config::prarse(args.config_path).expect("Failed to parse config");
     let c1 = config.clone();
 
     HttpServer::new(move || {
@@ -55,8 +57,8 @@ async fn main() {
             .wrap(actix_web::middleware::Logger::default())
     })
     .bind((config.ip_address, config.port))
-    .unwrap()
+    .expect("Failed to bind?")
     .run()
     .await
-    .unwrap();
+    .expect("Failure");
 }

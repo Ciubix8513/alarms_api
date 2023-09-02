@@ -1,6 +1,8 @@
+#![allow(clippy::module_name_repetitions)]
 use std::{
     error::Error,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use serde_derive::{Deserialize, Serialize};
@@ -23,9 +25,10 @@ pub struct ConfigItem {
 pub struct SeverityItem {
     pub severity: Severity,
     pub response: AlarmResponseTypes,
+    pub repeating: Option<Duration>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Default, Debug, Clone)]
 pub enum Severity {
     #[default]
     Low,
@@ -34,17 +37,16 @@ pub enum Severity {
     Test,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
-pub enum RepeatingSatus {
-    #[default]
-    NonRepeating,
-    Repeating(u32),
-}
+// #[derive(Serialize, Deserialize, Default, Debug, Clone)]
+// pub enum RepeatingSatus {
+//     #[default]
+//     NonRepeating,
+//     Repeating(u32),
+// }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct FileArguments {
     pub path: PathBuf,
-    pub repeating: RepeatingSatus,
 }
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub enum AlarmResponseTypes {
@@ -54,79 +56,79 @@ pub enum AlarmResponseTypes {
     File(FileArguments),
 }
 
-#[test]
-fn serialization_test() {
-    let conf = Config {
-        api_key: "123".to_string(),
-        port: 5000,
-        ip_address: "127.0.0.1".to_string(),
-        hosts: vec![
-            ConfigItem {
-                name: "Test".to_string(),
-                responses: vec![
-                    SeverityItem {
-                        severity: Severity::Low,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::Middle,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::High,
-                        response: AlarmResponseTypes::File(FileArguments {
-                            path: "~/Projects/ed/target/debug/ed".into(),
-                            repeating: RepeatingSatus::Repeating(1000),
-                        }),
-                    },
-                ],
-            },
-            ConfigItem {
-                name: "Test1".to_string(),
-                responses: vec![
-                    SeverityItem {
-                        severity: Severity::Low,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::Middle,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::High,
-                        response: AlarmResponseTypes::Sound,
-                    },
-                ],
-            },
-            ConfigItem {
-                name: "Test2".to_string(),
-                responses: vec![
-                    SeverityItem {
-                        severity: Severity::Low,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::Middle,
-                        response: AlarmResponseTypes::Log,
-                    },
-                    SeverityItem {
-                        severity: Severity::High,
-                        response: AlarmResponseTypes::Sound,
-                    },
-                ],
-            },
-        ],
-    };
-    let s = serde_yaml::to_string(&conf).unwrap();
-    println!("{s}");
-}
+// #[test]
+// fn serialization_test() {
+//     let conf = Config {
+//         api_key: "123".to_string(),
+//         port: 5000,
+//         ip_address: "127.0.0.1".to_string(),
+//         hosts: vec![
+//             ConfigItem {
+//                 name: "Test".to_string(),
+//                 responses: vec![
+//                     SeverityItem {
+//                         severity: Severity::Low,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::Middle,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::High,
+//                         response: AlarmResponseTypes::File(FileArguments {
+//                             path: "~/Projects/ed/target/debug/ed".into(),
+//                             repeating: RepeatingSatus::Repeating(1000),
+//                         }),
+//                     },
+//                 ],
+//             },
+//             ConfigItem {
+//                 name: "Test1".to_string(),
+//                 responses: vec![
+//                     SeverityItem {
+//                         severity: Severity::Low,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::Middle,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::High,
+//                         response: AlarmResponseTypes::Sound,
+//                     },
+//                 ],
+//             },
+//             ConfigItem {
+//                 name: "Test2".to_string(),
+//                 responses: vec![
+//                     SeverityItem {
+//                         severity: Severity::Low,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::Middle,
+//                         response: AlarmResponseTypes::Log,
+//                     },
+//                     SeverityItem {
+//                         severity: Severity::High,
+//                         response: AlarmResponseTypes::Sound,
+//                     },
+//                 ],
+//             },
+//         ],
+//     };
+//     let s = serde_yaml::to_string(&conf).unwrap();
+//     println!("{s}");
+// }
 
-pub fn prarse_config(path: PathBuf) -> Result<Config, Box<dyn Error>> {
+pub fn prarse(path: PathBuf) -> Result<Config, Box<dyn Error>> {
     Ok::<Config, Box<dyn Error>>(serde_yaml::from_str(std::str::from_utf8(&std::fs::read(
         path,
     )?)?)?)
 }
-pub fn generate_default_config(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn generate_default(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let config = Config {
         ip_address: "127.0.0.1".to_string(),
         port: 5000,
@@ -137,17 +139,20 @@ pub fn generate_default_config(path: &Path) -> Result<(), Box<dyn std::error::Er
                 SeverityItem {
                     severity: Severity::Low,
                     response: AlarmResponseTypes::Log,
+                    repeating: None,
                 },
                 SeverityItem {
                     severity: Severity::Middle,
                     response: AlarmResponseTypes::Sound,
+
+                    repeating: None,
                 },
                 SeverityItem {
                     severity: Severity::High,
                     response: AlarmResponseTypes::File(FileArguments {
                         path: "~/test.sh".into(),
-                        repeating: RepeatingSatus::Repeating(1000),
                     }),
+                    repeating: None,
                 },
             ],
         }],

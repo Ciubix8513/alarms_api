@@ -1,26 +1,24 @@
-use std::{sync::mpsc, thread};
-
+#![allow(clippy::unused_async)]
+use crate::{
+    alarm_responses,
+    config::{AlarmResponseTypes, Config, Severity},
+    CHANNEL_STORE,
+};
 use actix_web::{
     post,
     web::{Data, Json},
     HttpResponse, Responder,
 };
-use log::{info, warn};
 use rand::RngCore;
 use serde_derive::{Deserialize, Serialize};
-
-use crate::{
-    alarm_responses::test_alarm::logging_allarm,
-    config::{Config, Severity},
-    CHANNEL_STORE,
-};
+use std::{sync::mpsc, thread};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Struct for the alarm endpoint
 pub struct AlarmRequest {
     pub api_key: String,
     pub host_id: String,
-    pub failure_status: Severity,
+    pub severity: Severity,
     pub failure_cause: String,
 }
 
@@ -30,13 +28,11 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
         return HttpResponse::Unauthorized();
     }
 
-    let (tx, rx) = mpsc::channel::<()>();
     let mut rng = rand::thread_rng();
 
     let mut alarm_id = rng.next_u32();
 
-    let mut map = CHANNEL_STORE.lock().unwrap();
-
+    let mut map = CHANNEL_STORE.lock().expect("POISON ERROR FUCK!");
     loop {
         if map.contains_key(&alarm_id) {
             alarm_id = rng.next_u32();
@@ -45,34 +41,41 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
         }
     }
 
-    map.insert(alarm_id, tx);
-
+    //Find the host
     if let Some(item) = config.hosts.iter().find(|i| i.name == payload.host_id) {
-        // if let Some(response).
-    }
+        //Find first config with the same severity
+        for i in &item.responses {
+            if i.severity != payload.severity {
+                continue;
+            }
 
-    // warn!("{}", map.contains_key(&alarm_id));
-
-    match payload.failure_status {
-        FailureStatus::Warn => {
-            log::warn!(
-                "WARN FROM {}, CAUSE {}\n ALARM ID {alarm_id}",
-                payload.host_id,
-                payload.failure_cause
+            i.repeating.map_or_else(
+                || match i.response {
+                    AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
+                    AlarmResponseTypes::Log => alarm_responses::log::alarm(),
+                    AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
+                },
+                |t| {
+                    let (tx, rx) = mpsc::channel::<()>();
+                    map.insert(alarm_id, tx);
+                    let tmp = i.clone();
+                    thread::spawn(move || {
+                        while rx.try_recv().is_err() {
+                            match tmp.response {
+                                AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
+                                AlarmResponseTypes::Log => alarm_responses::log::alarm(),
+                                AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
+                            }
+                            thread::sleep(t);
+                        }
+                    });
+                },
             );
-            thread::spawn(move || {
-                while rx.try_recv().is_err() {
-                    logging_allarm("TEST");
-                }
-            });
+            break;
         }
-        FailureStatus::Error => log::error!(
-            "ERROR FROM {}, CAUSE {}",
-            payload.host_id,
-            payload.failure_cause,
-        ),
+    } else {
+        log::warn!("Could not find host {}", payload.host_id);
     }
-
     HttpResponse::Ok()
 }
 
@@ -88,18 +91,20 @@ pub async fn disable_alarm(payload: Json<AlarmId>, api_key: Data<String>) -> imp
         return HttpResponse::Unauthorized();
     }
 
-    let mut map = CHANNEL_STORE.lock().unwrap();
+    let mut map = CHANNEL_STORE.lock().expect("POISON ERROR FUCK!");
 
-    for i in map.iter() {
-        info!("{:?}", i);
-    }
-
-    return if let Some(channel) = map.remove(&payload.id) {
-        channel.send(()).unwrap();
-
-        HttpResponse::Ok()
-    } else {
-        warn!("Wrong id ");
-        HttpResponse::BadRequest()
-    };
+    map.remove(&payload.id).map_or_else(
+        || {
+            log::warn!("Wrong id ");
+            HttpResponse::BadRequest()
+        },
+        |channel| {
+            if let Err(e) = channel.send(()) {
+                log::error!("Error sending {}", e);
+                HttpResponse::InternalServerError()
+            } else {
+                HttpResponse::Ok()
+            }
+        },
+    )
 }
