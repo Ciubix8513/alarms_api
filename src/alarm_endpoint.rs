@@ -41,6 +41,13 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
         }
     }
 
+    alarm_responses::log::alarm(
+        &payload.host_id,
+        &payload.failure_cause,
+        &payload.severity,
+        &format!("alarm id: {alarm_id}"),
+    );
+
     //Find the host
     if let Some(item) = config.hosts.iter().find(|i| i.name == payload.host_id) {
         //Find first config with the same severity
@@ -50,14 +57,15 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
             }
 
             i.repeating.map_or_else(
-                || match i.response {
+                || match &i.response {
                     AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
-                    AlarmResponseTypes::Log => alarm_responses::log::alarm(
+                    AlarmResponseTypes::Log(msg) => alarm_responses::log::alarm(
                         &payload.host_id,
                         &payload.failure_cause,
                         &i.severity,
+                        msg,
                     ),
-                    AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
+                    AlarmResponseTypes::File(p) => alarm_responses::file::alarm(p),
                 },
                 |t| {
                     let (tx, rx) = mpsc::channel::<()>();
@@ -66,14 +74,15 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
                     let tmp1 = payload.clone();
                     thread::spawn(move || {
                         while rx.try_recv().is_err() {
-                            match tmp.response {
+                            match &tmp.response {
                                 AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
-                                AlarmResponseTypes::Log => alarm_responses::log::alarm(
+                                AlarmResponseTypes::Log(msg) => alarm_responses::log::alarm(
                                     &tmp1.host_id,
                                     &tmp1.failure_cause,
                                     &tmp.severity,
+                                    msg,
                                 ),
-                                AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
+                                AlarmResponseTypes::File(p) => alarm_responses::file::alarm(p),
                             }
                             thread::sleep(t);
                         }
