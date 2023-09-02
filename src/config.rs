@@ -37,12 +37,16 @@ pub enum Severity {
     Test,
 }
 
-// #[derive(Serialize, Deserialize, Default, Debug, Clone)]
-// pub enum RepeatingSatus {
-//     #[default]
-//     NonRepeating,
-//     Repeating(u32),
-// }
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Low => write!(f, "Low"),
+            Self::Middle => write!(f, "Medium"),
+            Self::High => write!(f, "High"),
+            Self::Test => write!(f, "Test"),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct FileArguments {
@@ -55,73 +59,6 @@ pub enum AlarmResponseTypes {
     Log,
     File(FileArguments),
 }
-
-// #[test]
-// fn serialization_test() {
-//     let conf = Config {
-//         api_key: "123".to_string(),
-//         port: 5000,
-//         ip_address: "127.0.0.1".to_string(),
-//         hosts: vec![
-//             ConfigItem {
-//                 name: "Test".to_string(),
-//                 responses: vec![
-//                     SeverityItem {
-//                         severity: Severity::Low,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::Middle,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::High,
-//                         response: AlarmResponseTypes::File(FileArguments {
-//                             path: "~/Projects/ed/target/debug/ed".into(),
-//                             repeating: RepeatingSatus::Repeating(1000),
-//                         }),
-//                     },
-//                 ],
-//             },
-//             ConfigItem {
-//                 name: "Test1".to_string(),
-//                 responses: vec![
-//                     SeverityItem {
-//                         severity: Severity::Low,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::Middle,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::High,
-//                         response: AlarmResponseTypes::Sound,
-//                     },
-//                 ],
-//             },
-//             ConfigItem {
-//                 name: "Test2".to_string(),
-//                 responses: vec![
-//                     SeverityItem {
-//                         severity: Severity::Low,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::Middle,
-//                         response: AlarmResponseTypes::Log,
-//                     },
-//                     SeverityItem {
-//                         severity: Severity::High,
-//                         response: AlarmResponseTypes::Sound,
-//                     },
-//                 ],
-//             },
-//         ],
-//     };
-//     let s = serde_yaml::to_string(&conf).unwrap();
-//     println!("{s}");
-// }
 
 pub fn prarse(path: PathBuf) -> Result<Config, Box<dyn Error>> {
     Ok::<Config, Box<dyn Error>>(serde_yaml::from_str(std::str::from_utf8(&std::fs::read(
@@ -152,7 +89,7 @@ pub fn generate_default(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
                     response: AlarmResponseTypes::File(FileArguments {
                         path: "~/test.sh".into(),
                     }),
-                    repeating: None,
+                    repeating: Some(Duration::from_secs(1)),
                 },
             ],
         }],

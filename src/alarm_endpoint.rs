@@ -13,7 +13,7 @@ use rand::RngCore;
 use serde_derive::{Deserialize, Serialize};
 use std::{sync::mpsc, thread};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Struct for the alarm endpoint
 pub struct AlarmRequest {
     pub api_key: String,
@@ -52,18 +52,27 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
             i.repeating.map_or_else(
                 || match i.response {
                     AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
-                    AlarmResponseTypes::Log => alarm_responses::log::alarm(),
+                    AlarmResponseTypes::Log => alarm_responses::log::alarm(
+                        &payload.host_id,
+                        &payload.failure_cause,
+                        &i.severity,
+                    ),
                     AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
                 },
                 |t| {
                     let (tx, rx) = mpsc::channel::<()>();
                     map.insert(alarm_id, tx);
                     let tmp = i.clone();
+                    let tmp1 = payload.clone();
                     thread::spawn(move || {
                         while rx.try_recv().is_err() {
                             match tmp.response {
                                 AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
-                                AlarmResponseTypes::Log => alarm_responses::log::alarm(),
+                                AlarmResponseTypes::Log => alarm_responses::log::alarm(
+                                    &tmp1.host_id,
+                                    &tmp1.failure_cause,
+                                    &tmp.severity,
+                                ),
                                 AlarmResponseTypes::File(_) => alarm_responses::file::alarm(),
                             }
                             thread::sleep(t);
