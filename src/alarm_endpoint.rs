@@ -58,7 +58,11 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
 
             i.repeating.map_or_else(
                 || match &i.response {
-                    AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
+                    AlarmResponseTypes::Sound(f) => {
+                        if let Err(e) = alarm_responses::sounds::alarm(f) {
+                            log::error!("Audio alarm error: {e}");
+                        }
+                    }
                     AlarmResponseTypes::Log(msg) => alarm_responses::log::alarm(
                         &payload.host_id,
                         &payload.failure_cause,
@@ -75,7 +79,11 @@ pub async fn alarm(payload: Json<AlarmRequest>, config: Data<Config>) -> impl Re
                     thread::spawn(move || {
                         while rx.try_recv().is_err() {
                             match &tmp.response {
-                                AlarmResponseTypes::Sound => alarm_responses::sounds::alarm(),
+                                AlarmResponseTypes::Sound(f) => {
+                                    if let Err(e) = alarm_responses::sounds::alarm(f) {
+                                        log::error!("Audio alarm error: {e}");
+                                    }
+                                }
                                 AlarmResponseTypes::Log(msg) => alarm_responses::log::alarm(
                                     &tmp1.host_id,
                                     &tmp1.failure_cause,

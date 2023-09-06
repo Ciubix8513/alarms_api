@@ -50,12 +50,12 @@ impl std::fmt::Display for Severity {
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct FileArguments {
-    pub exe_path: PathBuf,
-    pub run_directory: PathBuf,
+    pub file_path: PathBuf,
+    pub run_directory: Option<PathBuf>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum AlarmResponseTypes {
-    Sound,
+    Sound(FileArguments),
     Log(String),
     File(FileArguments),
 }
@@ -86,15 +86,18 @@ pub fn generate_default(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 },
                 SeverityItem {
                     severity: Severity::Middle,
-                    response: AlarmResponseTypes::Sound,
+                    response: AlarmResponseTypes::Sound(FileArguments {
+                        file_path: "~/Music/test.mp3".into(),
+                        run_directory: None,
+                    }),
 
                     repeating: None,
                 },
                 SeverityItem {
                     severity: Severity::High,
                     response: AlarmResponseTypes::File(FileArguments {
-                        exe_path: "~/test.sh".into(),
-                        run_directory: "~/".into(),
+                        file_path: "~/test.sh".into(),
+                        run_directory: Some("~/".into()),
                     }),
                     repeating: Some(Duration::from_secs(1)),
                 },
