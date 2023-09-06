@@ -2,7 +2,7 @@
 
 use std::{fs::File, io::BufReader};
 
-use rodio::{Decoder, Source};
+use rodio::{Decoder, Sink};
 
 use crate::config::FileArguments;
 
@@ -12,6 +12,10 @@ pub fn alarm(args: &FileArguments) -> Result<(), Box<dyn std::error::Error>> {
     let file = BufReader::new(file);
     let decoder = Decoder::new(file)?;
 
-    handle.play_raw(decoder.convert_samples())?;
+    let sink = Sink::try_new(&handle)?;
+    sink.append(decoder);
+    // handle.play_raw(decoder.convert_samples())?;
+
+    sink.sleep_until_end();
     Ok(())
 }
