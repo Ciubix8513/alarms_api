@@ -112,8 +112,8 @@ pub struct AlarmId {
 }
 
 #[post("/disable_alarm")]
-pub async fn disable_alarm(payload: Json<AlarmId>, api_key: Data<String>) -> impl Responder {
-    if api_key.into_inner() != payload.api_key.clone().into() {
+pub async fn disable_alarm(payload: Json<AlarmId>, config: Data<Config>) -> impl Responder {
+    if config.api_key != payload.api_key {
         return HttpResponse::Unauthorized();
     }
 
