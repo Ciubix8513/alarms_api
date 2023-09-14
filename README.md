@@ -30,7 +30,7 @@ This endpoint disables one alarm, if it's repeating, it takes in the following d
 api_key : String
 id : u32
 ```
-It disables the repeated alarm with a given id, this endpoint is meant to be pinged manually.
+It disables the repeated alarm with a given id, this endpoint is meant to be called manually.
 
 ## Config
 All responses are configured using a config, you can generate a sample config by passing a `-g` flag when running the api.
